@@ -15,6 +15,17 @@ struct AppSettings: Codable, Hashable {
     /// Caddy log level (DEBUG/INFO/WARN/ERROR).
     var logLevel: String = "INFO"
 
+    // MARK: Error notifications (via a local SMTP relay, e.g. MailRelay)
+    /// Send an e-mail when something fails.
+    var notifyOnError: Bool = false
+    /// Recipient address (configurable).
+    var notifyEmail: String = ""
+    /// Sender address; empty → "proxymanager@<hostname>".
+    var notifyFrom: String = ""
+    /// Local relay endpoint (MailRelay default is 127.0.0.1:2525).
+    var smtpHost: String = "127.0.0.1"
+    var smtpPort: Int = 2525
+
     static let stagingACMEDirectory = "https://acme-staging-v02.api.letsencrypt.org/directory"
 }
 

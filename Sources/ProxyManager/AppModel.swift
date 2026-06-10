@@ -20,6 +20,12 @@ final class AppModel: ObservableObject {
     let loginItemAvailable = LoginItem.isAvailable
     private var statusTimer: Timer?
 
+    // Error-notification state.
+    private var notifyThrottle: [String: Date] = [:]
+    private var logErrorTail = FileTail()
+    private var logWatcherPrimed = false
+    private var lastCaddyRunning: Bool?
+
     init() {
         self.config = HostStore.load()
         refreshStatus()
@@ -54,6 +60,66 @@ final class AppModel: ObservableObject {
         caddyRunning = CaddyController.isRunning()
         if loginItemAvailable { launchAtLogin = LoginItem.isEnabled }
         refreshCerts()
+        checkServiceDown()
+        checkLogForErrors()
+    }
+
+    // MARK: - Error notifications
+
+    /// Send an error e-mail if enabled, deduplicated per `key` for 5 minutes.
+    private func notify(subject: String, body: String, key: String) {
+        guard config.settings.notifyOnError,
+              !config.settings.notifyEmail.trimmingCharacters(in: .whitespaces).isEmpty else { return }
+        let now = Date()
+        if let last = notifyThrottle[key], now.timeIntervalSince(last) < 300 { return }
+        notifyThrottle[key] = now
+        let settings = config.settings
+        Task.detached { try? Notifier.send(subject: subject, body: body, settings: settings) }
+    }
+
+    /// Notify once when the service transitions from running to stopped.
+    private func checkServiceDown() {
+        if agentInstalled, lastCaddyRunning == true, caddyRunning == false {
+            notify(subject: "ProxyManager: Dienst gestoppt",
+                   body: "Der Caddy-Dienst läuft nicht mehr auf \(ProcessInfo.processInfo.hostName).",
+                   key: "service-down")
+        }
+        lastCaddyRunning = caddyRunning
+    }
+
+    /// Watch the global Caddy log for new error-level events (e.g. failed
+    /// certificate issuance/renewal) and notify. Skips the backlog on first run.
+    private func checkLogForErrors() {
+        let lines = logErrorTail.newLines(from: AppPaths.globalLog)
+        guard logWatcherPrimed else { logWatcherPrimed = true; return }
+        for line in lines {
+            guard let obj = try? JSONSerialization.jsonObject(with: line) as? [String: Any] else { continue }
+            let level = (obj["level"] as? String) ?? ""
+            guard level == "error" || level == "fatal" else { continue }
+            let logger = (obj["logger"] as? String) ?? "caddy"
+            let msg = (obj["msg"] as? String) ?? ""
+            var body = "Logger: \(logger)\nMeldung: \(msg)"
+            if let id = obj["identifier"] as? String { body += "\nDomain: \(id)" }
+            if let err = obj["error"] as? String { body += "\nDetails: \(err)" }
+            notify(subject: "ProxyManager: Caddy-Fehler", body: body, key: "log:\(logger):\(msg)")
+        }
+    }
+
+    /// Send a test e-mail using the given (possibly unsaved) settings.
+    func sendTestMail(_ settings: AppSettings) {
+        busy = true
+        lastError = nil
+        statusMessage = "Sende Testmail…"
+        Task.detached {
+            do {
+                try Notifier.send(subject: "ProxyManager Testmail",
+                                  body: "Dies ist eine Testnachricht von ProxyManager. Wenn du sie erhältst, funktioniert der Mailversand.",
+                                  settings: settings)
+                await MainActor.run { self.statusMessage = "Testmail gesendet."; self.busy = false }
+            } catch {
+                await MainActor.run { self.report(error); self.busy = false }
+            }
+        }
     }
 
     /// Re-read certificate status for every configured domain (off the main thread).
@@ -240,5 +306,8 @@ final class AppModel: ObservableObject {
     private func report(_ error: Error) {
         lastError = error.localizedDescription
         statusMessage = nil
+        notify(subject: "ProxyManager: Fehler",
+               body: error.localizedDescription,
+               key: "report:\(error.localizedDescription)")
     }
 }

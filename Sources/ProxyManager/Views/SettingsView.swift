@@ -50,6 +50,29 @@ struct SettingsView: View {
                         .font(.caption2).foregroundStyle(.secondary)
                 }
 
+                group("Benachrichtigungen") {
+                    Toggle("E-Mail bei Fehlern senden", isOn: $settings.notifyOnError)
+                    TextField("Empfänger-Adresse", text: $settings.notifyEmail)
+                        .textFieldStyle(.roundedBorder)
+                    DisclosureGroup("SMTP-Relay (erweitert)") {
+                        VStack(alignment: .leading, spacing: 6) {
+                            TextField("Absender (leer = automatisch)", text: $settings.notifyFrom)
+                                .textFieldStyle(.roundedBorder)
+                            HStack {
+                                TextField("Host", text: $settings.smtpHost)
+                                    .textFieldStyle(.roundedBorder)
+                                TextField("Port", value: $settings.smtpPort, format: .number.grouping(.never))
+                                    .textFieldStyle(.roundedBorder).frame(width: 80)
+                            }
+                            Text("Standard 127.0.0.1:2525 — lokaler Relay (z. B. MailRelay).")
+                                .font(.caption2).foregroundStyle(.secondary)
+                        }
+                        .padding(.top, 4)
+                    }
+                    Button("Testmail senden") { model.sendTestMail(settings) }
+                        .disabled(model.busy || settings.notifyEmail.trimmingCharacters(in: .whitespaces).isEmpty)
+                }
+
                 Button("Einstellungen speichern & anwenden") {
                     model.saveSettings(settings)
                 }
