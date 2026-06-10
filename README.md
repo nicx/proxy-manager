@@ -13,7 +13,7 @@ kein Docker, kein Homebrew, **komplett ohne root**.
 - IP-/CIDR-Access-Listen (Allow/Deny) pro Host
 - Live-Log-Viewer (Caddy JSON-Access-Logs)
 - Import/Export der gesamten Konfiguration als JSON
-- Caddy-Self-Update mit Rollback
+- Caddy-Self-Update (SHA-512-verifiziert gegen die offiziellen Release-Checksummen) mit Rollback
 - TLS-Verify-Skip für selbstsignierte Backends (z. B. UniFi)
 
 ## Architektur

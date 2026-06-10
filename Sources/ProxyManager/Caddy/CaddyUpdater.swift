@@ -1,23 +1,31 @@
 import Foundation
+import CryptoKit
 
 /// Self-updates the bundled Caddy binary from the official GitHub releases.
-/// Downloads the macOS arm64 build, ad-hoc signs it, strips quarantine, swaps it
-/// in atomically and restarts the agent — with rollback if the new binary fails.
+/// Downloads the macOS arm64 build, verifies its SHA-512 against the release's
+/// published checksums, ad-hoc signs it, strips quarantine, swaps it in
+/// atomically and restarts the agent — with rollback if the new binary fails.
 enum CaddyUpdater {
     struct ReleaseInfo {
         var version: String   // e.g. "2.8.4"
         var downloadURL: URL
+        var assetName: String      // e.g. "caddy_2.11.4_mac_arm64.tar.gz"
+        var checksumsURL: URL?     // caddy_<ver>_checksums.txt
     }
 
     enum UpdateError: LocalizedError {
         case network(String)
         case noAsset
+        case noChecksums
+        case checksumMismatch
         case extractionFailed(String)
         case verifyFailed
         var errorDescription: String? {
             switch self {
             case .network(let m): return "Netzwerkfehler: \(m)"
             case .noAsset: return "Kein passendes macOS-arm64-Asset im Release gefunden."
+            case .noChecksums: return "Keine Checksummen-Datei im Release gefunden — Update abgebrochen."
+            case .checksumMismatch: return "Checksumme stimmt nicht überein — Download verworfen (möglicher Manipulationsversuch)."
             case .extractionFailed(let m): return "Entpacken fehlgeschlagen: \(m)"
             case .verifyFailed: return "Neue Caddy-Binary startet nicht — Rollback durchgeführt."
             }
@@ -42,11 +50,18 @@ enum CaddyUpdater {
         let assets = (json?["assets"] as? [[String: Any]]) ?? []
         // Asset name pattern: caddy_<version>_mac_arm64.tar.gz
         let match = assets.first { ($0["name"] as? String)?.contains("mac_arm64.tar.gz") == true }
-        guard let urlString = match?["browser_download_url"] as? String,
+        guard let assetName = match?["name"] as? String,
+              let urlString = match?["browser_download_url"] as? String,
               let url = URL(string: urlString) else {
             throw UpdateError.noAsset
         }
-        return ReleaseInfo(version: version, downloadURL: url)
+        // The plain checksums.txt (not the .sig / .pem signature artifacts).
+        let csAsset = assets.first {
+            guard let n = $0["name"] as? String else { return false }
+            return n.hasSuffix("checksums.txt")
+        }
+        let csURL = (csAsset?["browser_download_url"] as? String).flatMap(URL.init(string:))
+        return ReleaseInfo(version: version, downloadURL: url, assetName: assetName, checksumsURL: csURL)
     }
 
     /// Download + install the given release, swapping the binary and restarting.
@@ -68,6 +83,10 @@ enum CaddyUpdater {
         let tarPath = workDir.appendingPathComponent("caddy.tar.gz")
         try? fm.removeItem(at: tarPath)
         try fm.moveItem(at: tmpTar, to: tarPath)
+
+        // 1b) Verify integrity against the release's published SHA-512 checksums
+        // BEFORE doing anything with the downloaded file.
+        try await verifyChecksum(tarPath: tarPath, release: release)
 
         // 2) Extract.
         let untar = Shell.run("/usr/bin/tar", ["-xzf", tarPath.path, "-C", workDir.path])
@@ -105,6 +124,39 @@ enum CaddyUpdater {
             try rollback()
             throw UpdateError.verifyFailed
         }
+    }
+
+    /// Download the release's checksums.txt and confirm the tarball's SHA-512
+    /// matches the entry for our asset. Caddy's checksums are SHA-512 (128 hex),
+    /// formatted as "<hash>  <filename>" per line.
+    private static func verifyChecksum(tarPath: URL, release: ReleaseInfo) async throws {
+        guard let csURL = release.checksumsURL else { throw UpdateError.noChecksums }
+
+        var req = URLRequest(url: csURL)
+        req.setValue("ProxyManager", forHTTPHeaderField: "User-Agent")
+        let (csData, resp) = try await URLSession.shared.data(for: req)
+        guard let http = resp as? HTTPURLResponse, http.statusCode == 200 else {
+            throw UpdateError.network("Checksums HTTP \((resp as? HTTPURLResponse)?.statusCode ?? -1)")
+        }
+
+        // Find the expected hash for our asset filename.
+        let text = String(decoding: csData, as: UTF8.self)
+        var expected: String?
+        for line in text.split(whereSeparator: \.isNewline) {
+            let parts = line.split(whereSeparator: { $0 == " " }).filter { !$0.isEmpty }
+            if parts.count == 2, parts[1] == Substring(release.assetName) {
+                expected = parts[0].lowercased()
+                break
+            }
+        }
+        guard let expectedHash = expected else { throw UpdateError.noChecksums }
+
+        // Compute the actual SHA-512 of the downloaded tarball.
+        let data = try Data(contentsOf: tarPath)
+        let digest = SHA512.hash(data: data)
+        let actual = digest.map { String(format: "%02x", $0) }.joined()
+
+        guard actual == expectedHash else { throw UpdateError.checksumMismatch }
     }
 
     private static func rollback() throws {
