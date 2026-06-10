@@ -73,3 +73,7 @@ In Xcode öffnen: `File ▸ Open…` und die `Package.swift` wählen.
   ohne Gatekeeper-Warnung später `IDENTITY` in `Scripts/codesign.sh` auf eine Developer-ID
   setzen und notarisieren.
 - **DNS-01/Wildcard** ist bewusst nicht enthalten (HTTP-01 über Port 80 genügt).
+
+## Lizenz
+
+[MIT](LICENSE) © 2026 nicx
