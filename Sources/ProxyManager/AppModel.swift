@@ -173,6 +173,36 @@ final class AppModel: ObservableObject {
     private func persist() {
         do { try HostStore.save(config) }
         catch { report(error) }
+        writeBackupIfEnabled()
+    }
+
+    /// Write an automatic backup snapshot after a config change, if enabled.
+    private func writeBackupIfEnabled() {
+        guard config.settings.backupEnabled else { return }
+        let folder = config.settings.backupFolder.trimmingCharacters(in: .whitespaces)
+        guard !folder.isEmpty else { return }
+        let cfg = config
+        Task.detached {
+            do { try BackupManager.write(cfg, toFolder: folder) }
+            catch { await MainActor.run { self.lastError = "Backup fehlgeschlagen: \(error.localizedDescription)" } }
+        }
+    }
+
+    /// Manually trigger a backup using the given (possibly unsaved) settings.
+    func backupNow(_ settings: AppSettings) {
+        let folder = settings.backupFolder.trimmingCharacters(in: .whitespaces)
+        guard !folder.isEmpty else { report(SimpleError("Kein Backup-Ordner gewählt.")); return }
+        var cfg = config
+        cfg.settings = settings
+        busy = true
+        Task.detached {
+            do {
+                try BackupManager.write(cfg, toFolder: folder)
+                await MainActor.run { self.statusMessage = "Backup gespeichert."; self.busy = false }
+            } catch {
+                await MainActor.run { self.report(error); self.busy = false }
+            }
+        }
     }
 
     /// Save config, regenerate the Caddyfile and reload Caddy (no downtime).

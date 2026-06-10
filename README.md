@@ -13,6 +13,7 @@ kein Docker, kein Homebrew, **komplett ohne root**.
 - IP-/CIDR-Access-Listen (Allow/Deny) pro Host
 - Live-Log-Viewer (Caddy JSON-Access-Logs)
 - Import/Export der gesamten Konfiguration als JSON
+- Automatisches, zeitgestempeltes Backup in einen konfigurierbaren Ordner (z. B. iCloud), letzte 30 Stände
 - Caddy-Self-Update (SHA-512-verifiziert gegen die offiziellen Release-Checksummen) mit Rollback
 - E-Mail-Benachrichtigung bei Fehlern (über einen lokalen SMTP-Relay wie [MailRelay](https://github.com/nicx/mailrelay), Default `127.0.0.1:2525`)
 - TLS-Verify-Skip für selbstsignierte Backends (z. B. UniFi)

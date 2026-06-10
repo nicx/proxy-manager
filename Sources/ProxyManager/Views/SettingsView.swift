@@ -1,9 +1,11 @@
 import SwiftUI
+import UniformTypeIdentifiers
 
 struct SettingsView: View {
     @EnvironmentObject var model: AppModel
     @State private var settings: AppSettings = AppSettings()
     @State private var loaded = false
+    @State private var showFolderPicker = false
 
     var body: some View {
         ScrollView {
@@ -73,6 +75,22 @@ struct SettingsView: View {
                         .disabled(model.busy || settings.notifyEmail.trimmingCharacters(in: .whitespaces).isEmpty)
                 }
 
+                group("Automatisches Backup") {
+                    Toggle("Bei jeder Änderung sichern", isOn: $settings.backupEnabled)
+                    HStack {
+                        TextField("Backup-Ordner", text: $settings.backupFolder)
+                            .textFieldStyle(.roundedBorder)
+                        Button("Wählen…") { showFolderPicker = true }
+                    }
+                    HStack {
+                        Button("Jetzt sichern") { model.backupNow(settings) }
+                            .disabled(model.busy || settings.backupFolder.trimmingCharacters(in: .whitespaces).isEmpty)
+                        Spacer()
+                    }
+                    Text("Schreibt zeitgestempelte JSON-Kopien (ohne Zertifikate) und behält die letzten 30. Tipp: einen iCloud-synchronisierten Ordner wählen.")
+                        .font(.caption2).foregroundStyle(.secondary)
+                }
+
                 Button("Einstellungen speichern & anwenden") {
                     model.saveSettings(settings)
                 }
@@ -82,6 +100,11 @@ struct SettingsView: View {
         }
         .onAppear {
             if !loaded { settings = model.config.settings; loaded = true }
+        }
+        .fileImporter(isPresented: $showFolderPicker, allowedContentTypes: [.folder]) { result in
+            if case .success(let url) = result {
+                settings.backupFolder = url.path
+            }
         }
     }
 

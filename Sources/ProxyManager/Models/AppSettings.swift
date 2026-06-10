@@ -26,6 +26,12 @@ struct AppSettings: Codable, Hashable {
     var smtpHost: String = "127.0.0.1"
     var smtpPort: Int = 2525
 
+    // MARK: Automatic backup
+    /// Write a timestamped JSON copy of the config to `backupFolder` on every change.
+    var backupEnabled: Bool = false
+    /// Target folder (e.g. an iCloud-synced directory). Supports a leading "~".
+    var backupFolder: String = ""
+
     static let stagingACMEDirectory = "https://acme-staging-v02.api.letsencrypt.org/directory"
 }
 
