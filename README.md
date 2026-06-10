@@ -7,15 +7,17 @@ kein Docker, kein Homebrew, **komplett ohne root**.
 
 ## Funktionen
 
-- Proxy-Hosts anlegen/bearbeiten/löschen (Domain → Backend)
-- Automatisches SSL pro Host via Let's Encrypt (HTTP-01)
+- Proxy-Hosts anlegen/bearbeiten/löschen (eine **oder mehrere Domains** → Backend)
+- **Statische Seiten** pro Host (eingebauter `file_server`, kein eigenes Backend nötig)
+- Automatisches SSL pro Host via Let's Encrypt (HTTP-01) — mit **Status-Anzeige** (Ablauf/Aussteller) und **manueller Erneuerung** je Domain
 - Basic-Auth pro Host (Passwort wird als bcrypt-Hash gespeichert)
 - IP-/CIDR-Access-Listen (Allow/Deny) pro Host
-- Live-Log-Viewer (Caddy JSON-Access-Logs)
+- Live-Log-Viewer pro Host: **Zugriffe** und **Zertifikats-/ACME-Ereignisse** (Ausstellung/Erneuerung)
 - Import/Export der gesamten Konfiguration als JSON
 - Automatisches, zeitgestempeltes Backup in einen konfigurierbaren Ordner (z. B. iCloud), letzte 30 Stände
 - Caddy-Self-Update (SHA-512-verifiziert gegen die offiziellen Release-Checksummen) mit Rollback
 - E-Mail-Benachrichtigung bei Fehlern (über einen lokalen SMTP-Relay wie [MailRelay](https://github.com/nicx/mailrelay), Default `127.0.0.1:2525`)
+- Autostart der App beim Login (optional)
 - TLS-Verify-Skip für selbstsignierte Backends (z. B. UniFi)
 
 ## Architektur
@@ -36,7 +38,8 @@ Caddy läuft als **User-`LaunchAgent`** (`RunAtLoad`/`KeepAlive`) → 24/7, sola
 angemeldet ist.
 
 Alle Daten unter `~/Library/Application Support/ProxyManager/`:
-`Caddyfile`, `config.json`, `bin/caddy`, `caddy/` (Zertifikate), `logs/`.
+`Caddyfile`, `config.json`, `bin/caddy`, `caddy/` (Zertifikate), `logs/`,
+`sites/` (statische Seiten).
 
 ## Bauen
 
