@@ -1,0 +1,7 @@
+.build/
+build/
+Resources/caddy
+*.dmg
+.DS_Store
+*.xcodeproj/xcuserdata/
+.swiftpm/
