@@ -59,7 +59,7 @@ Scripts/make-dmg.sh         # -> build/ProxyManager.dmg
 Während der Entwicklung direkt starten: `swift run` (Caddy wird dann aus `Resources/caddy`
 oder vom `PATH` als Seed verwendet).
 
-App-Icon (Outline-Schild) neu erzeugen: `swift Scripts/make-icon.swift` → `Resources/AppIcon.icns`
+App-Icon (Outline-Pfeile) neu erzeugen: `swift Scripts/make-icon.swift` → `Resources/AppIcon.icns`
 (wird von `build-app.sh` automatisch eingebunden).
 
 In Xcode öffnen: `File ▸ Open…` und die `Package.swift` wählen.

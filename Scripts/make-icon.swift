@@ -39,30 +39,17 @@ func draw(_ px: Int) -> CGImage {
     ctx.restoreGState()
 
     ctx.setStrokeColor(CGColor(srgbRed: 1, green: 1, blue: 1, alpha: 1))
+    ctx.setLineWidth(64 * f)
 
-    // Shield outline.
-    let rr: CGFloat = 40
-    let shield = CGMutablePath()
-    shield.move(to: P(302 + rr, 300))
-    shield.addLine(to: P(722 - rr, 300))
-    shield.addQuadCurve(to: P(722, 300 + rr), control: P(722, 300))
-    shield.addLine(to: P(722, 470))
-    shield.addQuadCurve(to: P(512, 760), control: P(722, 648))
-    shield.addQuadCurve(to: P(302, 470), control: P(302, 648))
-    shield.addLine(to: P(302, 300 + rr))
-    shield.addQuadCurve(to: P(302 + rr, 300), control: P(302, 300))
-    shield.closeSubpath()
-    ctx.addPath(shield)
-    ctx.setLineWidth(46 * f)
-    ctx.strokePath()
-
-    // Checkmark inside the shield.
-    let check = CGMutablePath()
-    check.move(to: P(424, 512))
-    check.addLine(to: P(488, 584))
-    check.addLine(to: P(612, 430))
-    ctx.addPath(check)
-    ctx.setLineWidth(56 * f)
+    // Two arrows — matches the menu-bar glyph "arrow.left.arrow.right".
+    let arrows = CGMutablePath()
+    // Top arrow, pointing left.
+    arrows.move(to: P(672, 430)); arrows.addLine(to: P(392, 430))
+    arrows.move(to: P(472, 360)); arrows.addLine(to: P(392, 430)); arrows.addLine(to: P(472, 500))
+    // Bottom arrow, pointing right.
+    arrows.move(to: P(352, 594)); arrows.addLine(to: P(632, 594))
+    arrows.move(to: P(552, 524)); arrows.addLine(to: P(632, 594)); arrows.addLine(to: P(552, 664))
+    ctx.addPath(arrows)
     ctx.strokePath()
 
     return ctx.makeImage()!
