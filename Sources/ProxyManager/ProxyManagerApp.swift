@@ -5,7 +5,7 @@ struct ProxyManagerApp: App {
 
     var body: some Scene {
         // Always the outline glyph, regardless of running state.
-        MenuBarExtra("ProxyManager", systemImage: "checkmark.shield") {
+        MenuBarExtra("ProxyManager", systemImage: "arrow.left.arrow.right") {
             MainView()
                 .environmentObject(model)
                 .frame(width: 480, height: 560)
