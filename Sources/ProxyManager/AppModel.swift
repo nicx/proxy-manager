@@ -246,6 +246,13 @@ final class AppModel: ObservableObject {
         applyChanges()
     }
 
+    /// Persist just the backup folder immediately (no Caddy reload needed).
+    /// Used by the folder picker so the choice survives even if the menu closes.
+    func setBackupFolder(_ path: String) {
+        config.settings.backupFolder = path
+        do { try HostStore.save(config) } catch { report(error) }
+    }
+
     // MARK: - Agent lifecycle
 
     func installService() {

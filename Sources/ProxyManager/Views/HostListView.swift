@@ -1,11 +1,8 @@
 import SwiftUI
-import UniformTypeIdentifiers
 
 struct HostListView: View {
     @EnvironmentObject var model: AppModel
     @State private var editing: ProxyHost?
-    @State private var showImporter = false
-    @State private var showExporter = false
 
     var body: some View {
         Group {
@@ -21,20 +18,6 @@ struct HostListView: View {
             } else {
                 listContent
             }
-        }
-        .fileImporter(isPresented: $showImporter, allowedContentTypes: [.json]) { result in
-            if case .success(let url) = result {
-                let access = url.startAccessingSecurityScopedResource()
-                defer { if access { url.stopAccessingSecurityScopedResource() } }
-                model.importConfig(from: url)
-            }
-        }
-        .fileExporter(isPresented: $showExporter,
-                      document: ConfigDocument(config: model.config),
-                      contentType: .json,
-                      defaultFilename: "proxymanager-config") { result in
-            // Result handled by the document; nothing to do.
-            _ = result
         }
     }
 
@@ -65,9 +48,15 @@ struct HostListView: View {
                 editing = ProxyHost()
             } label: { Label("Host", systemImage: "plus") }
             Spacer()
-            Button { showImporter = true } label: { Image(systemName: "square.and.arrow.down") }
+            Button {
+                if let url = FilePanels.openJSON() { model.importConfig(from: url) }
+            } label: { Image(systemName: "square.and.arrow.down") }
                 .help("Konfiguration importieren")
-            Button { showExporter = true } label: { Image(systemName: "square.and.arrow.up") }
+            Button {
+                if let url = FilePanels.saveJSON(suggestedName: "proxymanager-config.json") {
+                    model.export(to: url)
+                }
+            } label: { Image(systemName: "square.and.arrow.up") }
                 .help("Konfiguration exportieren")
         }
         .padding(8)
@@ -144,22 +133,3 @@ struct ContentUnavailableCompat: View {
     }
 }
 
-/// FileDocument wrapper for export.
-struct ConfigDocument: FileDocument {
-    static var readableContentTypes: [UTType] { [.json] }
-    var config: AppConfig
-
-    init(config: AppConfig) { self.config = config }
-    init(configuration: ReadConfiguration) throws {
-        if let data = configuration.file.regularFileContents {
-            config = try JSONDecoder().decode(AppConfig.self, from: data)
-        } else {
-            config = AppConfig()
-        }
-    }
-    func fileWrapper(configuration: WriteConfiguration) throws -> FileWrapper {
-        let encoder = JSONEncoder()
-        encoder.outputFormatting = [.prettyPrinted, .sortedKeys]
-        return FileWrapper(regularFileWithContents: try encoder.encode(config))
-    }
-}

@@ -1,11 +1,9 @@
 import SwiftUI
-import UniformTypeIdentifiers
 
 struct SettingsView: View {
     @EnvironmentObject var model: AppModel
     @State private var settings: AppSettings = AppSettings()
     @State private var loaded = false
-    @State private var showFolderPicker = false
 
     var body: some View {
         ScrollView {
@@ -80,7 +78,12 @@ struct SettingsView: View {
                     HStack {
                         TextField("Backup-Ordner", text: $settings.backupFolder)
                             .textFieldStyle(.roundedBorder)
-                        Button("Wählen…") { showFolderPicker = true }
+                        Button("Wählen…") {
+                            if let url = FilePanels.chooseFolder() {
+                                settings.backupFolder = url.path
+                                model.setBackupFolder(url.path)
+                            }
+                        }
                     }
                     HStack {
                         Button("Jetzt sichern") { model.backupNow(settings) }
@@ -100,11 +103,6 @@ struct SettingsView: View {
         }
         .onAppear {
             if !loaded { settings = model.config.settings; loaded = true }
-        }
-        .fileImporter(isPresented: $showFolderPicker, allowedContentTypes: [.folder]) { result in
-            if case .success(let url) = result {
-                settings.backupFolder = url.path
-            }
         }
     }
 
