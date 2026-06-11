@@ -52,6 +52,7 @@ struct SettingsView: View {
 
                 group("Benachrichtigungen") {
                     Toggle("E-Mail bei Fehlern senden", isOn: $settings.notifyOnError)
+                    Toggle("E-Mail bei verfügbarem Caddy-Update", isOn: $settings.notifyOnUpdate)
                     TextField("Empfänger-Adresse", text: $settings.notifyEmail)
                         .textFieldStyle(.roundedBorder)
                     DisclosureGroup("SMTP-Relay (erweitert)") {

@@ -32,6 +32,9 @@ struct AppSettings: Codable, Hashable {
     /// Target folder (e.g. an iCloud-synced directory). Supports a leading "~".
     var backupFolder: String = ""
 
+    /// E-mail when a newer Caddy version is available.
+    var notifyOnUpdate: Bool = true
+
     static let stagingACMEDirectory = "https://acme-staging-v02.api.letsencrypt.org/directory"
 }
 
@@ -42,4 +45,7 @@ struct AppConfig: Codable {
 
     /// Schema version, so future imports can be migrated.
     var version: Int = 1
+
+    /// Last Caddy version we already e-mailed an update notice about (dedup).
+    var lastNotifiedUpdate: String = ""
 }

@@ -16,6 +16,10 @@ final class AppModel: ObservableObject {
     @Published var launchAtLogin: Bool = false
     /// SSL certificate status keyed by domain.
     @Published var certInfos: [String: CertInfo] = [:]
+    /// Newer Caddy version available (nil if up to date / unknown).
+    @Published var updateAvailable: String?
+
+    private var lastUpdateCheck: Date?
 
     let loginItemAvailable = LoginItem.isAvailable
     private var statusTimer: Timer?
@@ -62,6 +66,62 @@ final class AppModel: ObservableObject {
         refreshCerts()
         checkServiceDown()
         checkLogForErrors()
+        maybeCheckForUpdate()
+    }
+
+    // MARK: - Caddy update check
+
+    /// Throttle the network update check to roughly once a day.
+    private func maybeCheckForUpdate() {
+        let now = Date()
+        if let last = lastUpdateCheck, now.timeIntervalSince(last) < 86_400 { return }
+        lastUpdateCheck = now
+        checkForUpdate()
+    }
+
+    /// Compare the installed Caddy with the latest GitHub release; update the
+    /// `updateAvailable` flag and e-mail once per new version (if enabled).
+    func checkForUpdate() {
+        guard let installed = Self.parseVersion(caddyVersion) else { updateAvailable = nil; return }
+        Task {
+            guard let release = try? await CaddyUpdater.fetchLatest() else { return }
+            let latest = release.version
+            guard Self.isNewer(latest, than: installed) else {
+                self.updateAvailable = nil
+                return
+            }
+            self.updateAvailable = latest
+            guard self.config.settings.notifyOnUpdate,
+                  !self.config.settings.notifyEmail.trimmingCharacters(in: .whitespaces).isEmpty,
+                  self.config.lastNotifiedUpdate != latest else { return }
+            let settings = self.config.settings
+            let body = "Eine neue Caddy-Version ist verfügbar: \(latest)\nInstalliert: \(installed)\n\nIn ProxyManager unter „Status“ aktualisieren."
+            Task.detached {
+                try? Notifier.send(subject: "ProxyManager: Caddy-Update \(latest) verfügbar",
+                                   body: body, settings: settings)
+            }
+            self.config.lastNotifiedUpdate = latest
+            try? HostStore.save(self.config)
+        }
+    }
+
+    /// Parse a Caddy version string ("v2.11.4 h1:…") to "2.11.4", or nil.
+    static func parseVersion(_ s: String) -> String? {
+        let token = s.split(separator: " ").first.map(String.init) ?? s
+        let v = token.hasPrefix("v") ? String(token.dropFirst()) : token
+        return v.first?.isNumber == true ? v : nil
+    }
+
+    /// True if semver `a` is strictly greater than `b`.
+    static func isNewer(_ a: String, than b: String) -> Bool {
+        let pa = a.split(separator: ".").map { Int($0) ?? 0 }
+        let pb = b.split(separator: ".").map { Int($0) ?? 0 }
+        for i in 0..<max(pa.count, pb.count) {
+            let x = i < pa.count ? pa[i] : 0
+            let y = i < pb.count ? pb[i] : 0
+            if x != y { return x > y }
+        }
+        return false
     }
 
     // MARK: - Error notifications
@@ -307,6 +367,7 @@ final class AppModel: ObservableObject {
                 statusMessage = "Lade Caddy \(release.version)…"
                 try await CaddyUpdater.install(release)
                 statusMessage = "Caddy auf \(release.version) aktualisiert."
+                updateAvailable = nil
             } catch {
                 report(error)
             }

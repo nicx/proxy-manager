@@ -16,7 +16,7 @@ kein Docker, kein Homebrew, **komplett ohne root**.
 - Import/Export der gesamten Konfiguration als JSON
 - Automatisches, zeitgestempeltes Backup in einen konfigurierbaren Ordner (z. B. iCloud), letzte 30 Stände
 - Caddy-Self-Update (SHA-512-verifiziert gegen die offiziellen Release-Checksummen) mit Rollback
-- E-Mail-Benachrichtigung bei Fehlern (über einen lokalen SMTP-Relay wie [MailRelay](https://github.com/nicx/mailrelay), Default `127.0.0.1:2525`)
+- E-Mail-Benachrichtigung bei Fehlern **und bei verfügbarem Caddy-Update** (über einen lokalen SMTP-Relay wie [MailRelay](https://github.com/nicx/mailrelay), Default `127.0.0.1:2525`)
 - Autostart der App beim Login (optional)
 - TLS-Verify-Skip für selbstsignierte Backends (z. B. UniFi)
 

@@ -28,6 +28,12 @@ struct StatusView: View {
                 }
 
                 group("Caddy-Update") {
+                    if let v = model.updateAvailable {
+                        Label("Update verfügbar: \(v)", systemImage: "arrow.down.circle")
+                            .foregroundStyle(.orange)
+                    } else {
+                        Text("Caddy ist aktuell.").font(.caption).foregroundStyle(.secondary)
+                    }
                     Button("Auf neueste Caddy-Version aktualisieren") { model.updateCaddy() }
                         .disabled(model.busy)
                     Text("Lädt die offizielle macOS-arm64-Binary, signiert sie ad-hoc und tauscht sie mit Rollback.")
