@@ -29,6 +29,10 @@ final class AppModel: ObservableObject {
     private var logErrorTail = FileTail()
     private var logWatcherPrimed = false
     private var lastCaddyRunning: Bool?
+    /// Until this time, a detected stop is treated as user-initiated (no alert).
+    private var suppressDownUntil: Date?
+    /// True once we've e-mailed about an *unexpected* outage (so we can send a recovery mail).
+    private var notifiedUnexpectedDown = false
 
     init() {
         self.config = HostStore.load()
@@ -137,12 +141,30 @@ final class AppModel: ObservableObject {
         Task.detached { try? Notifier.send(subject: subject, body: body, settings: settings) }
     }
 
-    /// Notify once when the service transitions from running to stopped.
+    /// Mark a user-initiated start/stop/restart so the resulting state change
+    /// isn't reported as an unexpected outage. Time-boxed so a never-observed
+    /// transition can't permanently mute future real outages.
+    private func markUserServiceAction() {
+        suppressDownUntil = Date().addingTimeInterval(30)
+    }
+
+    /// Alert on *unexpected* stop (running→stopped, not user-initiated) and on
+    /// recovery (stopped→running after such an alert).
     private func checkServiceDown() {
+        let host = ProcessInfo.processInfo.hostName
         if agentInstalled, lastCaddyRunning == true, caddyRunning == false {
-            notify(subject: "ProxyManager: Dienst gestoppt",
-                   body: "Der Caddy-Dienst läuft nicht mehr auf \(ProcessInfo.processInfo.hostName).",
-                   key: "service-down")
+            let userInitiated = suppressDownUntil.map { Date() < $0 } ?? false
+            if !userInitiated {
+                notify(subject: "ProxyManager: Dienst unerwartet gestoppt",
+                       body: "Der Caddy-Dienst läuft nicht mehr auf \(host) (kein manueller Stopp).",
+                       key: "service-down")
+                notifiedUnexpectedDown = true
+            }
+        } else if agentInstalled, lastCaddyRunning == false, caddyRunning == true, notifiedUnexpectedDown {
+            notify(subject: "ProxyManager: Dienst wieder online",
+                   body: "Der Caddy-Dienst läuft wieder auf \(host).",
+                   key: "service-up")
+            notifiedUnexpectedDown = false
         }
         lastCaddyRunning = caddyRunning
     }
@@ -322,22 +344,26 @@ final class AppModel: ObservableObject {
     }
 
     func uninstallService() {
+        markUserServiceAction()
         runAsync("Dienst entfernt.") {
             try AgentInstaller.uninstall()
         } completion: { self.refreshStatus() }
     }
 
     func restartService() {
+        markUserServiceAction()
         runAsync("Dienst neu gestartet.") {
             try AgentInstaller.restart()
         } completion: { self.refreshStatus() }
     }
 
     func startService() {
+        markUserServiceAction()
         runAsync("Dienst gestartet.") { try AgentInstaller.start() } completion: { self.refreshStatus() }
     }
 
     func stopService() {
+        markUserServiceAction()
         runAsync("Dienst gestoppt.") { try AgentInstaller.stop() } completion: { self.refreshStatus() }
     }
 
