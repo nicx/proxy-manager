@@ -35,6 +35,14 @@ struct AppSettings: Codable, Hashable {
     /// E-mail when a newer Caddy version is available.
     var notifyOnUpdate: Bool = true
 
+    /// Source networks treated as "internal" — used by per-host
+    /// "Basic-Auth only from outside" to exempt LAN clients.
+    var internalCIDRs: [String] = [
+        "127.0.0.1/8", "::1/128",
+        "10.0.0.0/8", "172.16.0.0/12", "192.168.0.0/16",
+        "fc00::/7", "fe80::/10",
+    ]
+
     static let stagingACMEDirectory = "https://acme-staging-v02.api.letsencrypt.org/directory"
 }
 

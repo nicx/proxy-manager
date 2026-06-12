@@ -156,6 +156,12 @@ struct HostEditorView: View {
                 TextField("Benutzername", text: $authUser)
                 SecureField(existingHash != nil ? "Neues Passwort (leer = unverändert)" : "Passwort",
                             text: $authPassword)
+                Toggle("Nur von extern verlangen (interne Netze ausnehmen)",
+                       isOn: $host.basicAuthSkipInternal)
+                if host.basicAuthSkipInternal {
+                    Text("Interne Quellen ohne Abfrage: \(model.config.settings.internalCIDRs.joined(separator: ", ")). Anpassbar in den Einstellungen. Wichtig: nur zuverlässig, wenn externe Anfragen ihre echte Quell-IP behalten (von extern testen!).")
+                        .font(.caption2).foregroundStyle(.secondary)
+                }
             }
         }
     }

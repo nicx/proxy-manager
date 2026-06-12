@@ -50,6 +50,15 @@ struct SettingsView: View {
                         .font(.caption2).foregroundStyle(.secondary)
                 }
 
+                group("Interne Netze (CIDR)") {
+                    Text("Quellen, die als intern gelten — für Hosts mit „Basic-Auth nur von extern“. Je eine pro Zeile.")
+                        .font(.caption2).foregroundStyle(.secondary)
+                    TextEditor(text: internalCIDRsBinding)
+                        .font(.body.monospaced())
+                        .frame(height: 96)
+                        .overlay(RoundedRectangle(cornerRadius: 6).stroke(.quaternary))
+                }
+
                 group("Logging") {
                     Picker("Caddy-Log-Level", selection: $settings.logLevel) {
                         ForEach(["DEBUG", "INFO", "WARN", "ERROR"], id: \.self) { Text($0).tag($0) }
@@ -124,6 +133,18 @@ struct SettingsView: View {
         .onAppear {
             if !loaded { settings = model.config.settings; loaded = true }
         }
+    }
+
+    private var internalCIDRsBinding: Binding<String> {
+        Binding(
+            get: { settings.internalCIDRs.joined(separator: "\n") },
+            set: { newValue in
+                settings.internalCIDRs = newValue
+                    .split(whereSeparator: { $0 == "\n" || $0 == "," })
+                    .map { $0.trimmingCharacters(in: .whitespaces) }
+                    .filter { !$0.isEmpty }
+            }
+        )
     }
 
     @ViewBuilder

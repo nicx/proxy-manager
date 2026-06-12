@@ -46,6 +46,10 @@ struct ProxyHost: Codable, Identifiable, Hashable {
     /// Optional Basic-Auth gate.
     var basicAuth: BasicAuth? = nil
 
+    /// If true, Basic-Auth is only required for non-internal source IPs
+    /// (see AppSettings.internalCIDRs) — internal/LAN clients skip the prompt.
+    var basicAuthSkipInternal: Bool = false
+
     /// If non-empty, ONLY these IPs/CIDRs may connect; everything else gets 403.
     var allowCIDRs: [String] = []
     /// These IPs/CIDRs are always blocked (evaluated even if allow-list is empty).

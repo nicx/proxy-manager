@@ -10,7 +10,7 @@ kein Docker, kein Homebrew, **komplett ohne root**.
 - Proxy-Hosts anlegen/bearbeiten/löschen (eine **oder mehrere Domains** → Backend)
 - **Statische Seiten** pro Host (eingebauter `file_server`, kein eigenes Backend nötig)
 - Automatisches SSL pro Host via Let's Encrypt (HTTP-01) — mit **Status-Anzeige** (Ablauf/Aussteller) und **manueller Erneuerung** je Domain
-- Basic-Auth pro Host (Passwort wird als bcrypt-Hash gespeichert)
+- Basic-Auth pro Host (Passwort wird als bcrypt-Hash gespeichert), optional **nur von extern** (interne Netze ausgenommen)
 - IP-/CIDR-Access-Listen (Allow/Deny) pro Host
 - Live-Log-Viewer pro Host: **Zugriffe** und **Zertifikats-/ACME-Ereignisse** (Ausstellung/Erneuerung)
 - Import/Export der gesamten Konfiguration als JSON
@@ -82,6 +82,7 @@ In Xcode öffnen: `File ▸ Open…` und die `Package.swift` wählen.
   ohne Gatekeeper-Warnung später `IDENTITY` in `Scripts/codesign.sh` auf eine Developer-ID
   setzen und notarisieren.
 - **DNS-01/Wildcard** ist bewusst nicht enthalten (HTTP-01 über Port 80 genügt).
+- **Basic-Auth nur von extern**: Im Host-Editor „Nur von extern verlangen" — interne Quellen (Liste in Einstellungen → „Interne Netze (CIDR)", Default RFC1918 + Loopback + ULA/Link-Local) überspringen die Abfrage, externe müssen sich anmelden. Caddy nutzt dafür die **direkte Quell-IP** (`remote_ip`, nicht fälschbar über Header). ⚠️ Nur zuverlässig, wenn weitergeleitete *externe* Anfragen ihre echte Quell-IP behalten — d. h. der Router darf sie nicht per SNAT auf eine LAN-IP umschreiben. **Von einem echten externen Netz testen**, dass die Auth verlangt wird.
 - **Interner Zugriff ohne NAT-Hairpin**: Wenn der Router internen Geräten die öffentliche Domain nicht zurück ins LAN spiegelt, in den Einstellungen **„Direkte Ports 80/443 (pf-Weiterleitung)" → Einrichten** (einmalig Admin) und einen **lokalen DNS-Eintrag** setzen (Domain → LAN-IP des Macs). Caddy bleibt auf 8080/8443; pf leitet 80→8080 und 443→8443 um und persistiert über einen kleinen Boot-Daemon (`/Library/LaunchDaemons/com.proxymanager.pf.plist`). Es wird ein **benannter Anker** (`com.proxymanager`) **idempotent in `/etc/pf.conf` eingetragen** (mit einmaligem Backup `/etc/pf.conf.orig.proxymanager`) und dieses gemeinsame Regelwerk geladen — dadurch **koexistiert die Regel mit anderen pf-Apps** (z. B. [MailRelay](https://github.com/nicx/mailrelay) auf Port 25), statt sie zu überschreiben.
 
 ## Lizenz

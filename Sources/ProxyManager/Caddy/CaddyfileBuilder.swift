@@ -12,7 +12,7 @@ enum CaddyfileBuilder {
         var out = globalBlock(config.settings)
         out += "\n"
         for host in config.hosts where host.enabled && host.validationError() == nil {
-            out += "\n" + hostBlocks(host) + "\n"
+            out += "\n" + hostBlocks(host, internalCIDRs: config.settings.internalCIDRs) + "\n"
         }
         return out
     }
@@ -44,7 +44,7 @@ enum CaddyfileBuilder {
 
     // MARK: - Per host
 
-    private static func hostBlocks(_ host: ProxyHost) -> String {
+    private static func hostBlocks(_ host: ProxyHost, internalCIDRs: [String]) -> String {
         let domains = host.domains
             .map { $0.trimmingCharacters(in: .whitespaces) }
             .filter { !$0.isEmpty }
@@ -69,9 +69,18 @@ enum CaddyfileBuilder {
             body.append("respond @denied 403")
         }
 
-        // Basic auth (bcrypt hash only).
+        // Basic auth (bcrypt hash only). Optionally only for external clients:
+        // bind it to a matcher that excludes the configured internal networks.
         if let auth = host.basicAuth, !auth.username.isEmpty, !auth.bcryptHash.isEmpty {
-            body.append("basic_auth {")
+            let cidrs = internalCIDRs
+                .map { $0.trimmingCharacters(in: .whitespaces) }
+                .filter { !$0.isEmpty }
+            if host.basicAuthSkipInternal && !cidrs.isEmpty {
+                body.append("@needauth not remote_ip \(cidrs.joined(separator: " "))")
+                body.append("basic_auth @needauth {")
+            } else {
+                body.append("basic_auth {")
+            }
             body.append("\t\(auth.username) \(auth.bcryptHash)")
             body.append("}")
         }

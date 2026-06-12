@@ -27,6 +27,7 @@ if args.contains("--selftest") {
     unifi.skipTLSVerify = true
     unifi.basicAuth = BasicAuth(username: "timo",
                                 bcryptHash: "$2a$14$Zkx19XLiW6VYouLHR5NmfOFU0z2GTNmpkT/5qqR7hx4IjWJPDhjvG")
+    unifi.basicAuthSkipInternal = true
     unifi.allowCIDRs = ["192.168.0.0/16", "10.0.0.0/8"]
     unifi.denyCIDRs = ["192.168.1.66/32"]
 
