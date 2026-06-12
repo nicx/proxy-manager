@@ -18,6 +18,8 @@ final class AppModel: ObservableObject {
     @Published var certInfos: [String: CertInfo] = [:]
     /// Newer Caddy version available (nil if up to date / unknown).
     @Published var updateAvailable: String?
+    /// Whether the pf 80/443 redirect is installed.
+    @Published var portForwardingInstalled: Bool = false
 
     private var lastUpdateCheck: Date?
 
@@ -67,6 +69,7 @@ final class AppModel: ObservableObject {
         // Liveness probe off the main actor would be nicer; it's a short timeout.
         caddyRunning = CaddyController.isRunning()
         if loginItemAvailable { launchAtLogin = LoginItem.isEnabled }
+        portForwardingInstalled = PortForwarder.isInstalled
         refreshCerts()
         checkServiceDown()
         checkLogForErrors()
@@ -365,6 +368,42 @@ final class AppModel: ObservableObject {
     func stopService() {
         markUserServiceAction()
         runAsync("Dienst gestoppt.") { try AgentInstaller.stop() } completion: { self.refreshStatus() }
+    }
+
+    // MARK: - Privileged port forwarding (pf)
+
+    func installPortForwarding() {
+        let http = config.settings.httpPort
+        let https = config.settings.httpsPort
+        busy = true; lastError = nil
+        statusMessage = "Richte Port-Weiterleitung ein…"
+        Task.detached {
+            do {
+                try PortForwarder.install(httpPort: http, httpsPort: https)
+                await MainActor.run {
+                    self.statusMessage = "Port-Weiterleitung aktiv (80→\(http), 443→\(https))."
+                    self.busy = false; self.refreshStatus()
+                }
+            } catch {
+                await MainActor.run { self.report(error); self.busy = false; self.refreshStatus() }
+            }
+        }
+    }
+
+    func removePortForwarding() {
+        busy = true; lastError = nil
+        statusMessage = "Entferne Port-Weiterleitung…"
+        Task.detached {
+            do {
+                try PortForwarder.uninstall()
+                await MainActor.run {
+                    self.statusMessage = "Port-Weiterleitung entfernt."
+                    self.busy = false; self.refreshStatus()
+                }
+            } catch {
+                await MainActor.run { self.report(error); self.busy = false; self.refreshStatus() }
+            }
+        }
     }
 
     // MARK: - Import / Export

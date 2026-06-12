@@ -31,6 +31,25 @@ struct SettingsView: View {
                         .font(.caption2).foregroundStyle(.secondary)
                 }
 
+                group("Direkte Ports 80/443 (pf-Weiterleitung)") {
+                    HStack {
+                        Circle()
+                            .fill(model.portForwardingInstalled ? Color.green : Color.secondary)
+                            .frame(width: 9, height: 9)
+                        Text(model.portForwardingInstalled ? "Aktiv" : "Nicht eingerichtet")
+                        Spacer()
+                        if model.portForwardingInstalled {
+                            Button("Entfernen", role: .destructive) { model.removePortForwarding() }
+                                .disabled(model.busy)
+                        } else {
+                            Button("Einrichten") { model.installPortForwarding() }
+                                .disabled(model.busy)
+                        }
+                    }
+                    Text("Leitet eingehend 80→\(settings.httpPort) und 443→\(settings.httpsPort) per pf um, damit der Mac direkt auf 80/443 antwortet (einmalig Admin-Passwort). Für den internen Zugriff zusätzlich einen lokalen DNS-Eintrag setzen: Domain → LAN-IP des Macs. Nach einer Port-Änderung erneut einrichten.")
+                        .font(.caption2).foregroundStyle(.secondary)
+                }
+
                 group("Logging") {
                     Picker("Caddy-Log-Level", selection: $settings.logLevel) {
                         ForEach(["DEBUG", "INFO", "WARN", "ERROR"], id: \.self) { Text($0).tag($0) }

@@ -18,6 +18,7 @@ kein Docker, kein Homebrew, **komplett ohne root**.
 - Caddy-Self-Update (SHA-512-verifiziert gegen die offiziellen Release-Checksummen) mit Rollback
 - E-Mail-Benachrichtigung bei Fehlern **und bei verfügbarem Caddy-Update** (über einen lokalen SMTP-Relay wie [MailRelay](https://github.com/nicx/mailrelay), Default `127.0.0.1:2525`)
 - Autostart der App beim Login (optional)
+- Direkte Ports 80/443 per **pf-Weiterleitung** (optional, einmalig Admin) — für Netze ohne funktionierenden NAT-Hairpin; Caddy bleibt dabei root-frei
 - TLS-Verify-Skip für selbstsignierte Backends (z. B. UniFi)
 
 ## Architektur
@@ -81,6 +82,7 @@ In Xcode öffnen: `File ▸ Open…` und die `Package.swift` wählen.
   ohne Gatekeeper-Warnung später `IDENTITY` in `Scripts/codesign.sh` auf eine Developer-ID
   setzen und notarisieren.
 - **DNS-01/Wildcard** ist bewusst nicht enthalten (HTTP-01 über Port 80 genügt).
+- **Interner Zugriff ohne NAT-Hairpin**: Wenn der Router internen Geräten die öffentliche Domain nicht zurück ins LAN spiegelt, in den Einstellungen **„Direkte Ports 80/443 (pf-Weiterleitung)" → Einrichten** (einmalig Admin) und einen **lokalen DNS-Eintrag** setzen (Domain → LAN-IP des Macs). Caddy bleibt auf 8080/8443; pf leitet 80→8080 und 443→8443 um und persistiert das über einen kleinen Boot-Daemon (`/Library/LaunchDaemons/com.proxymanager.pf.plist`). Die geladene `/etc/pf-proxymanager.conf` spiegelt Apples Standard-Ruleset plus den eigenen rdr-Anchor.
 
 ## Lizenz
 
