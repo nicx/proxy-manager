@@ -82,7 +82,7 @@ In Xcode öffnen: `File ▸ Open…` und die `Package.swift` wählen.
   ohne Gatekeeper-Warnung später `IDENTITY` in `Scripts/codesign.sh` auf eine Developer-ID
   setzen und notarisieren.
 - **DNS-01/Wildcard** ist bewusst nicht enthalten (HTTP-01 über Port 80 genügt).
-- **Interner Zugriff ohne NAT-Hairpin**: Wenn der Router internen Geräten die öffentliche Domain nicht zurück ins LAN spiegelt, in den Einstellungen **„Direkte Ports 80/443 (pf-Weiterleitung)" → Einrichten** (einmalig Admin) und einen **lokalen DNS-Eintrag** setzen (Domain → LAN-IP des Macs). Caddy bleibt auf 8080/8443; pf leitet 80→8080 und 443→8443 um und persistiert das über einen kleinen Boot-Daemon (`/Library/LaunchDaemons/com.proxymanager.pf.plist`). Die geladene `/etc/pf-proxymanager.conf` spiegelt Apples Standard-Ruleset plus den eigenen rdr-Anchor.
+- **Interner Zugriff ohne NAT-Hairpin**: Wenn der Router internen Geräten die öffentliche Domain nicht zurück ins LAN spiegelt, in den Einstellungen **„Direkte Ports 80/443 (pf-Weiterleitung)" → Einrichten** (einmalig Admin) und einen **lokalen DNS-Eintrag** setzen (Domain → LAN-IP des Macs). Caddy bleibt auf 8080/8443; pf leitet 80→8080 und 443→8443 um und persistiert über einen kleinen Boot-Daemon (`/Library/LaunchDaemons/com.proxymanager.pf.plist`). Es wird ein **benannter Anker** (`com.proxymanager`) **idempotent in `/etc/pf.conf` eingetragen** (mit einmaligem Backup `/etc/pf.conf.orig.proxymanager`) und dieses gemeinsame Regelwerk geladen — dadurch **koexistiert die Regel mit anderen pf-Apps** (z. B. [MailRelay](https://github.com/nicx/mailrelay) auf Port 25), statt sie zu überschreiben.
 
 ## Lizenz
 
