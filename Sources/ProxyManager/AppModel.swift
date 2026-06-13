@@ -182,6 +182,12 @@ final class AppModel: ObservableObject {
             let level = (obj["level"] as? String) ?? ""
             guard level == "error" || level == "fatal" else { continue }
             let logger = (obj["logger"] as? String) ?? "caddy"
+            // Per-request HTTP errors (HTTP/2 idle timeouts like "no recent network
+            // activity", client disconnects, internet-scanner probes, transient
+            // upstream hiccups) are routine noise on a public proxy — keep them in
+            // the log/viewer but don't e-mail. Cert/ACME and service errors use
+            // other loggers (tls.*, admin, …) and still trigger a notification.
+            if logger.hasPrefix("http.log.error") { continue }
             let msg = (obj["msg"] as? String) ?? ""
             var body = "Logger: \(logger)\nMeldung: \(msg)"
             if let id = obj["identifier"] as? String { body += "\nDomain: \(id)" }
