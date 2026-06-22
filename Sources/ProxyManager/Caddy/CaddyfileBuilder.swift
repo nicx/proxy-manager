@@ -34,7 +34,10 @@ enum CaddyfileBuilder {
         // Default logger → JSON file. This captures TLS/ACME events (logger
         // names "tls.*") so the app can show certificate issuance/renewal.
         lines.append("\tlog {")
-        lines.append("\t\toutput file \(quote(AppPaths.globalLog.path))")
+        lines.append("\t\toutput file \(quote(AppPaths.globalLog.path)) {")
+        lines.append("\t\t\troll_size 10MiB")
+        lines.append("\t\t\troll_keep 5")
+        lines.append("\t\t}")
         lines.append("\t\tformat json")
         lines.append("\t\tlevel \(s.logLevel)")
         lines.append("\t}")
@@ -88,7 +91,10 @@ enum CaddyfileBuilder {
         // Per-host access log.
         if host.logging {
             body.append("log {")
-            body.append("\toutput file \(quote(AppPaths.logFile(for: host).path))")
+            body.append("\toutput file \(quote(AppPaths.logFile(for: host).path)) {")
+            body.append("\t\troll_size 10MiB")
+            body.append("\t\troll_keep 5")
+            body.append("\t}")
             body.append("\tformat json")
             body.append("}")
         }

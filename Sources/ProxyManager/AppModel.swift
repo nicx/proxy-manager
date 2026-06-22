@@ -175,8 +175,13 @@ final class AppModel: ObservableObject {
     /// Watch the global Caddy log for new error-level events (e.g. failed
     /// certificate issuance/renewal) and notify. Skips the backlog on first run.
     private func checkLogForErrors() {
+        guard logWatcherPrimed else {
+            // Seek to the current end once — never read the (possibly huge) backlog.
+            logErrorTail.primeToEnd(from: AppPaths.globalLog)
+            logWatcherPrimed = true
+            return
+        }
         let lines = logErrorTail.newLines(from: AppPaths.globalLog)
-        guard logWatcherPrimed else { logWatcherPrimed = true; return }
         for line in lines {
             guard let obj = try? JSONSerialization.jsonObject(with: line) as? [String: Any] else { continue }
             let level = (obj["level"] as? String) ?? ""
