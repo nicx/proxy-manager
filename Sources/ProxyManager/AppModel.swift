@@ -64,12 +64,32 @@ final class AppModel: ObservableObject {
     // MARK: - Status
 
     func refreshStatus() {
-        agentInstalled = AgentInstaller.isInstalled
-        caddyVersion = CaddyController.version() ?? "nicht installiert"
-        // Liveness probe off the main actor would be nicer; it's a short timeout.
-        caddyRunning = CaddyController.isRunning()
-        if loginItemAvailable { launchAtLogin = LoginItem.isEnabled }
-        portForwardingInstalled = PortForwarder.isInstalled
+        // The two expensive probes must not run on the main thread: `version()`
+        // spawns a subprocess and `isRunning()` blocks on a semaphore up to 1.5s.
+        // Run every 5s on the main thread they froze the UI. Probe off-main, apply back.
+        Task.detached(priority: .utility) {
+            let version = CaddyController.version() ?? "nicht installiert"
+            let running = CaddyController.isRunning()
+            await MainActor.run { self.applyStatus(version: version, running: running) }
+        }
+    }
+
+    /// Apply probed status on the main actor. Assign only when a value actually
+    /// changed — an unconditional write to an @Published fires objectWillChange
+    /// even for an identical value, and with MenuBarExtra's `.window` style that
+    /// rebuilds the whole menu view every 5s and accumulates view storage without
+    /// bound (observed: ~1.9M leaked Label views, multi-GB footprint over days).
+    private func applyStatus(version: String, running: Bool) {
+        let installed = AgentInstaller.isInstalled
+        let pfInstalled = PortForwarder.isInstalled
+        if agentInstalled != installed { agentInstalled = installed }
+        if caddyVersion != version { caddyVersion = version }
+        if caddyRunning != running { caddyRunning = running }
+        if loginItemAvailable {
+            let enabled = LoginItem.isEnabled
+            if launchAtLogin != enabled { launchAtLogin = enabled }
+        }
+        if portForwardingInstalled != pfInstalled { portForwardingInstalled = pfInstalled }
         refreshCerts()
         checkServiceDown()
         checkLogForErrors()
@@ -221,12 +241,14 @@ final class AppModel: ObservableObject {
     /// Re-read certificate status for every configured domain (off the main thread).
     func refreshCerts() {
         let domains = config.hosts.flatMap { $0.domains }
-        guard !domains.isEmpty else { certInfos = [:]; return }
+        guard !domains.isEmpty else { if !certInfos.isEmpty { certInfos = [:] }; return }
         Task.detached(priority: .utility) {
             var result: [String: CertInfo] = [:]
             for d in domains { result[d] = CertInspector.info(for: d) }
             let snapshot = result
-            await MainActor.run { self.certInfos = snapshot }
+            // Only publish on real change (see applyStatus): avoids a needless
+            // objectWillChange every 5s that would rebuild the menu view.
+            await MainActor.run { if snapshot != self.certInfos { self.certInfos = snapshot } }
         }
     }
 
