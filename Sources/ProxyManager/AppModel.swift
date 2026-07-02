@@ -30,7 +30,9 @@ final class AppModel: ObservableObject {
     private var notifyThrottle: [String: Date] = [:]
     private var logErrorTail = FileTail()
     private var logWatcherPrimed = false
-    private var lastCaddyRunning: Bool?
+    /// Consecutive "not running" liveness readings — used to debounce a single
+    /// slow/timed-out admin-API probe so it can't fire a false outage alert.
+    private var consecutiveDownReadings = 0
     /// Until this time, a detected stop is treated as user-initiated (no alert).
     private var suppressDownUntil: Date?
     /// True once we've e-mailed about an *unexpected* outage (so we can send a recovery mail).
@@ -175,21 +177,29 @@ final class AppModel: ObservableObject {
     /// recovery (stopped→running after such an alert).
     private func checkServiceDown() {
         let host = ProcessInfo.processInfo.hostName
-        if agentInstalled, lastCaddyRunning == true, caddyRunning == false {
+        guard agentInstalled else { consecutiveDownReadings = 0; return }
+
+        if caddyRunning {
+            if notifiedUnexpectedDown {
+                notify(subject: "ProxyManager: Dienst wieder online",
+                       body: "Der Caddy-Dienst läuft wieder auf \(host).",
+                       key: "service-up")
+                notifiedUnexpectedDown = false
+            }
+            consecutiveDownReadings = 0
+        } else {
+            consecutiveDownReadings += 1
             let userInitiated = suppressDownUntil.map { Date() < $0 } ?? false
-            if !userInitiated {
+            // Require two consecutive "down" readings (~10s) before alerting: the
+            // liveness check is a 1.5s admin-API probe, and a single slow/timed-out
+            // response must not be reported as an outage (Caddy is often still up).
+            if consecutiveDownReadings >= 2, !userInitiated, !notifiedUnexpectedDown {
                 notify(subject: "ProxyManager: Dienst unerwartet gestoppt",
                        body: "Der Caddy-Dienst läuft nicht mehr auf \(host) (kein manueller Stopp).",
                        key: "service-down")
                 notifiedUnexpectedDown = true
             }
-        } else if agentInstalled, lastCaddyRunning == false, caddyRunning == true, notifiedUnexpectedDown {
-            notify(subject: "ProxyManager: Dienst wieder online",
-                   body: "Der Caddy-Dienst läuft wieder auf \(host).",
-                   key: "service-up")
-            notifiedUnexpectedDown = false
         }
-        lastCaddyRunning = caddyRunning
     }
 
     /// Watch the global Caddy log for new error-level events (e.g. failed
