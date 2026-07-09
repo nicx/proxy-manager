@@ -40,6 +40,9 @@ final class AppModel: ObservableObject {
     private var suppressDownUntil: Date?
     /// True once we've e-mailed about an *unexpected* outage (so we can send a recovery mail).
     private var notifiedUnexpectedDown = false
+    /// True once we've e-mailed that the pf redirect broke (anchor gone after a
+    /// macOS update) — so we alert once and send a recovery mail when repaired.
+    private var notifiedPfNeedsRepair = false
 
     init() {
         self.config = HostStore.load()
@@ -99,6 +102,7 @@ final class AppModel: ObservableObject {
         if portForwardingNeedsRepair != pfNeedsRepair { portForwardingNeedsRepair = pfNeedsRepair }
         refreshCerts()
         checkServiceDown()
+        checkPortForwardingRepair()
         checkLogForErrors()
         maybeCheckForUpdate()
     }
@@ -169,6 +173,31 @@ final class AppModel: ObservableObject {
         notifyThrottle[key] = now
         let settings = config.settings
         Task.detached { try? Notifier.send(subject: subject, body: body, settings: settings) }
+    }
+
+    /// Alert once when the pf 80/443 redirect breaks (daemon plist survives but the
+    /// anchor vanished from /etc/pf.conf, typically after a macOS update reset it) —
+    /// the site is then unreachable on 80/443 while DNS still resolves. Send a
+    /// recovery mail once repaired. The alert mail itself goes out via the local
+    /// relay on 127.0.0.1:2525, which is independent of this inbound redirect.
+    private func checkPortForwardingRepair() {
+        let host = ProcessInfo.processInfo.hostName
+        if portForwardingNeedsRepair {
+            if !notifiedPfNeedsRepair {
+                notify(subject: "ProxyManager: Port-Weiterleitung inaktiv",
+                       body: "Die pf-Weiterleitung 80/443 auf \(host) ist nicht mehr aktiv "
+                           + "(Anker fehlt in /etc/pf.conf — meist nach einem macOS-Update). "
+                           + "Die Seiten sind von außen nicht erreichbar, obwohl DNS auflöst. "
+                           + "Beheben: ProxyManager, Einstellungen, Abschnitt Direkte Ports 80/443, Knopf Reparieren.",
+                       key: "pf-needs-repair")
+                notifiedPfNeedsRepair = true
+            }
+        } else if notifiedPfNeedsRepair {
+            notify(subject: "ProxyManager: Port-Weiterleitung wieder aktiv",
+                   body: "Die pf-Weiterleitung 80/443 auf \(host) ist wieder eingerichtet.",
+                   key: "pf-repaired")
+            notifiedPfNeedsRepair = false
+        }
     }
 
     /// Mark a user-initiated start/stop/restart so the resulting state change
