@@ -34,11 +34,18 @@ struct SettingsView: View {
                 group("Direkte Ports 80/443 (pf-Weiterleitung)") {
                     HStack {
                         Circle()
-                            .fill(model.portForwardingInstalled ? Color.green : Color.secondary)
+                            .fill(model.portForwardingInstalled ? Color.green
+                                  : model.portForwardingNeedsRepair ? Color.orange
+                                  : Color.secondary)
                             .frame(width: 9, height: 9)
-                        Text(model.portForwardingInstalled ? "Aktiv" : "Nicht eingerichtet")
+                        Text(model.portForwardingInstalled ? "Aktiv"
+                             : model.portForwardingNeedsRepair ? "Inaktiv – nach System-Update neu einrichten"
+                             : "Nicht eingerichtet")
                         Spacer()
-                        if model.portForwardingInstalled {
+                        if model.portForwardingNeedsRepair {
+                            Button("Reparieren") { model.installPortForwarding() }
+                                .disabled(model.busy)
+                        } else if model.portForwardingInstalled {
                             Button("Entfernen", role: .destructive) { model.removePortForwarding() }
                                 .disabled(model.busy)
                         } else {

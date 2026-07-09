@@ -37,8 +37,29 @@ enum PortForwarder {
         }
     }
 
+    /// True only when the redirect is *actually live*: the launch daemon exists
+    /// AND our anchor is still referenced in the current `/etc/pf.conf`. A macOS
+    /// update can reset `/etc/pf.conf` (dropping the anchor) while leaving the
+    /// daemon plist in place — that must read as "not installed" so the UI offers
+    /// a fresh setup instead of a green "Aktiv" that lies.
     static var isInstalled: Bool {
+        daemonExists && anchorPresentInPfConf
+    }
+
+    /// The daemon plist survived but `/etc/pf.conf` lost our anchor (typical after
+    /// a macOS update reset the system ruleset). The redirect is dead even though a
+    /// stale plist lingers — the UI should offer a one-click repair.
+    static var needsRepair: Bool {
+        daemonExists && !anchorPresentInPfConf
+    }
+
+    private static var daemonExists: Bool {
         FileManager.default.fileExists(atPath: daemonPath)
+    }
+
+    private static var anchorPresentInPfConf: Bool {
+        currentPfConf().components(separatedBy: "\n")
+            .contains { $0.trimmingCharacters(in: .whitespaces) == loadAnchorLine }
     }
 
     private static var rdrAnchorLine: String { "rdr-anchor \"\(anchorName)\"" }

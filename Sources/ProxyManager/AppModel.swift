@@ -18,8 +18,11 @@ final class AppModel: ObservableObject {
     @Published var certInfos: [String: CertInfo] = [:]
     /// Newer Caddy version available (nil if up to date / unknown).
     @Published var updateAvailable: String?
-    /// Whether the pf 80/443 redirect is installed.
+    /// Whether the pf 80/443 redirect is installed and actually live.
     @Published var portForwardingInstalled: Bool = false
+    /// Stale daemon plist but the anchor is gone from /etc/pf.conf (e.g. after a
+    /// macOS update) — the redirect is dead and needs a one-click repair.
+    @Published var portForwardingNeedsRepair: Bool = false
 
     private var lastUpdateCheck: Date?
 
@@ -84,6 +87,7 @@ final class AppModel: ObservableObject {
     private func applyStatus(version: String, running: Bool) {
         let installed = AgentInstaller.isInstalled
         let pfInstalled = PortForwarder.isInstalled
+        let pfNeedsRepair = PortForwarder.needsRepair
         if agentInstalled != installed { agentInstalled = installed }
         if caddyVersion != version { caddyVersion = version }
         if caddyRunning != running { caddyRunning = running }
@@ -92,6 +96,7 @@ final class AppModel: ObservableObject {
             if launchAtLogin != enabled { launchAtLogin = enabled }
         }
         if portForwardingInstalled != pfInstalled { portForwardingInstalled = pfInstalled }
+        if portForwardingNeedsRepair != pfNeedsRepair { portForwardingNeedsRepair = pfNeedsRepair }
         refreshCerts()
         checkServiceDown()
         checkLogForErrors()
