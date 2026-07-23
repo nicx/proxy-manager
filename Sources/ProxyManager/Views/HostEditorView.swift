@@ -135,6 +135,9 @@ struct HostEditorView: View {
                        isOn: $host.skipTLSVerify)
                     .font(.callout)
             }
+            Toggle("Origin auf Backend umschreiben (nötig für WebSockets bei UniFi OS)",
+                   isOn: $host.rewriteOriginToUpstream)
+                .font(.callout)
         }
     }
 

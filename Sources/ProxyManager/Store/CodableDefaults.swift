@@ -16,8 +16,8 @@ extension KeyedDecodingContainer {
 extension ProxyHost {
     enum CodingKeys: String, CodingKey {
         case id, enabled, domains, target, staticContent, upstreamScheme,
-             upstreamHost, upstreamPort, skipTLSVerify, basicAuth,
-             basicAuthSkipInternal, allowCIDRs, denyCIDRs, logging
+             upstreamHost, upstreamPort, skipTLSVerify, rewriteOriginToUpstream,
+             basicAuth, basicAuthSkipInternal, allowCIDRs, denyCIDRs, logging
     }
     init(from decoder: Decoder) throws {
         self.init()
@@ -31,6 +31,7 @@ extension ProxyHost {
         upstreamHost = c.value(.upstreamHost, upstreamHost)
         upstreamPort = c.value(.upstreamPort, upstreamPort)
         skipTLSVerify = c.value(.skipTLSVerify, skipTLSVerify)
+        rewriteOriginToUpstream = c.value(.rewriteOriginToUpstream, rewriteOriginToUpstream)
         basicAuth = (try? c.decodeIfPresent(BasicAuth.self, forKey: .basicAuth)) ?? nil
         basicAuthSkipInternal = c.value(.basicAuthSkipInternal, basicAuthSkipInternal)
         allowCIDRs = c.value(.allowCIDRs, allowCIDRs)

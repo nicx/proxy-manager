@@ -43,6 +43,12 @@ struct ProxyHost: Codable, Identifiable, Hashable {
     /// Skip TLS verification toward the backend (needed for self-signed devices like UniFi).
     var skipTLSVerify: Bool = false
 
+    /// Rewrite the `Origin` header sent to the backend to the upstream's own origin.
+    /// Some apps (e.g. UniFi OS) validate the WebSocket Origin against their own host
+    /// and answer 500 on `/…/ws/…` when it's the proxy's public hostname — the page
+    /// then "loads only halfway". REST is unaffected, so only WebSockets break.
+    var rewriteOriginToUpstream: Bool = false
+
     /// Optional Basic-Auth gate.
     var basicAuth: BasicAuth? = nil
 

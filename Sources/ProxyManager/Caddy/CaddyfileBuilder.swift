@@ -120,7 +120,9 @@ enum CaddyfileBuilder {
         switch host.upstreamScheme {
         case .http:
             upstream = "\(host.upstreamHost):\(host.upstreamPort)"
-            return "reverse_proxy \(upstream)"
+            let rewrite = originRewrite(host)
+            if rewrite.isEmpty { return "reverse_proxy \(upstream)" }
+            return "reverse_proxy \(upstream) {" + rewrite + "\n}"
         case .https:
             upstream = "https://\(host.upstreamHost):\(host.upstreamPort)"
             // Force HTTP/1.1 when dialing a TLS backend. Over ALPN Caddy would
@@ -130,9 +132,25 @@ enum CaddyfileBuilder {
             // static shell + REST work but the live WebSockets die. h1.1 fixes it.
             var transport = ["\t\tversions 1.1"]
             if host.skipTLSVerify { transport.append("\t\ttls_insecure_skip_verify") }
-            return "reverse_proxy \(upstream) {\n\ttransport http {\n"
-                + transport.joined(separator: "\n") + "\n\t}\n}"
+            var block = "reverse_proxy \(upstream) {\n\ttransport http {\n"
+                + transport.joined(separator: "\n") + "\n\t}"
+            block += originRewrite(host)
+            return block + "\n}"
         }
+    }
+
+    /// `header_up Origin <upstream-origin>` line when the host opts in, else "".
+    /// Sends the backend its *own* origin as the WebSocket Origin so Origin-checking
+    /// apps (UniFi OS) accept the upgrade instead of 500-ing. The default port is
+    /// omitted to match how browsers form the Origin header.
+    private static func originRewrite(_ host: ProxyHost) -> String {
+        guard host.rewriteOriginToUpstream else { return "" }
+        let scheme = host.upstreamScheme == .https ? "https" : "http"
+        let defaultPort = host.upstreamScheme == .https ? 443 : 80
+        let origin = host.upstreamPort == defaultPort
+            ? "\(scheme)://\(host.upstreamHost)"
+            : "\(scheme)://\(host.upstreamHost):\(host.upstreamPort)"
+        return "\n\theader_up Origin \(origin)"
     }
 
     /// Quote a value for the Caddyfile if it contains whitespace.
