@@ -123,10 +123,15 @@ enum CaddyfileBuilder {
             return "reverse_proxy \(upstream)"
         case .https:
             upstream = "https://\(host.upstreamHost):\(host.upstreamPort)"
-            if host.skipTLSVerify {
-                return "reverse_proxy \(upstream) {\n\ttransport http {\n\t\ttls_insecure_skip_verify\n\t}\n}"
-            }
-            return "reverse_proxy \(upstream)"
+            // Force HTTP/1.1 when dialing a TLS backend. Over ALPN Caddy would
+            // otherwise negotiate HTTP/2, and WebSocket upgrades (Upgrade: websocket)
+            // can't ride HTTP/2 — the backend answers 500 on its /…/ws/… endpoints.
+            // Symptom: SPA dashboards (e.g. UniFi) "load only halfway" because the
+            // static shell + REST work but the live WebSockets die. h1.1 fixes it.
+            var transport = ["\t\tversions 1.1"]
+            if host.skipTLSVerify { transport.append("\t\ttls_insecure_skip_verify") }
+            return "reverse_proxy \(upstream) {\n\ttransport http {\n"
+                + transport.joined(separator: "\n") + "\n\t}\n}"
         }
     }
 
