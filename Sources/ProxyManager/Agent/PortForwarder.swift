@@ -121,7 +121,13 @@ enum PortForwarder {
         set -e
         mkdir -p /etc/pf.anchors
 
+        # The "on lo0" pair handles connections the Mac makes to its own LAN
+        # IP: macOS auto-adds a host route sending such traffic via lo0
+        # instead of the physical interface, so a plain rdr (matched on the
+        # inbound NIC) never sees it.
         cat > '\(anchorPath)' <<'ANCHOR'
+        rdr pass on lo0 inet proto tcp from any to any port 80 -> 127.0.0.1 port \(httpPort)
+        rdr pass on lo0 inet proto tcp from any to any port 443 -> 127.0.0.1 port \(httpsPort)
         rdr pass inet proto tcp from any to any port 80 -> 127.0.0.1 port \(httpPort)
         rdr pass inet proto tcp from any to any port 443 -> 127.0.0.1 port \(httpsPort)
         ANCHOR
