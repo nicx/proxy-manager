@@ -119,8 +119,14 @@ enum CaddyUpdater {
             try rollback()
             throw UpdateError.verifyFailed
         }
-        try await Task.sleep(nanoseconds: 2_500_000_000)
-        if !CaddyController.isRunning() {
+        // launchd respawns Caddy only after its throttle interval (~20 s here), so
+        // poll the admin endpoint instead of assuming it is up after a fixed delay.
+        var up = false
+        for _ in 0..<60 {
+            try await Task.sleep(nanoseconds: 1_000_000_000)
+            if CaddyController.isRunning() { up = true; break }
+        }
+        if !up {
             try rollback()
             throw UpdateError.verifyFailed
         }
