@@ -14,6 +14,9 @@ struct SettingsView: View {
                     Toggle("Staging-CA verwenden (zum Testen, ohne Rate-Limits)", isOn: $settings.useStagingCA)
                     Text("Staging stellt ungültige Test-Zertifikate aus. Für den Echtbetrieb aus lassen.")
                         .font(.caption2).foregroundStyle(.secondary)
+                    Toggle("DNS-Challenge über netcup (Geoblocking kann aktiv bleiben)", isOn: $settings.acmeDnsNetcup)
+                    Text("Braucht die Datei „acme-dns.caddy“ im Programmordner mit den netcup-API-Zugangsdaten und eine Caddy-Binary mit netcup-Modul (Status, Caddy aktualisieren).")
+                        .font(.caption2).foregroundStyle(.secondary)
                 }
 
                 group("Ports") {

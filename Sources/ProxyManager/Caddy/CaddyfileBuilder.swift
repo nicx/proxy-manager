@@ -26,6 +26,9 @@ enum CaddyfileBuilder {
         lines.append("\thttp_port \(s.httpPort)")
         lines.append("\thttps_port \(s.httpsPort)")
         lines.append("\tauto_https disable_redirects")
+        if s.acmeDnsNetcup {
+            lines.append("\timport \(quote(AppPaths.acmeDnsFile.path))")
+        }
         if s.useStagingCA {
             lines.append("\tacme_ca \(AppSettings.stagingACMEDirectory)")
         }

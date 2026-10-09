@@ -122,7 +122,7 @@ final class AppModel: ObservableObject {
     func checkForUpdate() {
         guard let installed = Self.parseVersion(caddyVersion) else { updateAvailable = nil; return }
         Task {
-            guard let release = try? await CaddyUpdater.fetchLatest() else { return }
+            guard let release = try? await CaddyUpdater.fetchLatest(withNetcup: self.config.settings.acmeDnsNetcup) else { return }
             let latest = release.version
             guard Self.isNewer(latest, than: installed) else {
                 self.updateAvailable = nil
@@ -505,7 +505,7 @@ final class AppModel: ObservableObject {
         statusMessage = "Suche nach Caddy-Update…"
         Task {
             do {
-                let release = try await CaddyUpdater.fetchLatest()
+                let release = try await CaddyUpdater.fetchLatest(withNetcup: config.settings.acmeDnsNetcup)
                 statusMessage = "Lade Caddy \(release.version)…"
                 try await CaddyUpdater.install(release)
                 statusMessage = "Caddy auf \(release.version) aktualisiert."

@@ -42,7 +42,7 @@ extension ProxyHost {
 
 extension AppSettings {
     enum CodingKeys: String, CodingKey {
-        case acmeEmail, useStagingCA, httpPort, httpsPort, logLevel,
+        case acmeEmail, useStagingCA, acmeDnsNetcup, httpPort, httpsPort, logLevel,
              notifyOnError, notifyEmail, notifyFrom, smtpHost, smtpPort,
              backupEnabled, backupFolder, notifyOnUpdate, internalCIDRs
     }
@@ -51,6 +51,7 @@ extension AppSettings {
         let c = try decoder.container(keyedBy: CodingKeys.self)
         acmeEmail = c.value(.acmeEmail, acmeEmail)
         useStagingCA = c.value(.useStagingCA, useStagingCA)
+        acmeDnsNetcup = c.value(.acmeDnsNetcup, acmeDnsNetcup)
         httpPort = c.value(.httpPort, httpPort)
         httpsPort = c.value(.httpsPort, httpsPort)
         logLevel = c.value(.logLevel, logLevel)

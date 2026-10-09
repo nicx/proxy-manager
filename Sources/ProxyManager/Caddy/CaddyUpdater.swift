@@ -11,6 +11,9 @@ enum CaddyUpdater {
         var downloadURL: URL
         var assetName: String      // e.g. "caddy_2.11.4_mac_arm64.tar.gz"
         var checksumsURL: URL?     // caddy_<ver>_checksums.txt
+        /// Custom build incl. the netcup DNS module from caddyserver.com (raw binary,
+        /// no published checksum — verified by running it and listing its modules).
+        var withNetcup = false
     }
 
     enum UpdateError: LocalizedError {
@@ -35,7 +38,7 @@ enum CaddyUpdater {
     static var installedVersion: String? { CaddyController.version() }
 
     /// Query the latest release tag and arm64 asset URL from GitHub.
-    static func fetchLatest() async throws -> ReleaseInfo {
+    static func fetchLatest(withNetcup: Bool = false) async throws -> ReleaseInfo {
         let api = URL(string: "https://api.github.com/repos/caddyserver/caddy/releases/latest")!
         var req = URLRequest(url: api)
         req.setValue("application/vnd.github+json", forHTTPHeaderField: "Accept")
@@ -48,6 +51,13 @@ enum CaddyUpdater {
         let tag = (json?["tag_name"] as? String) ?? ""
         let version = tag.hasPrefix("v") ? String(tag.dropFirst()) : tag
         let assets = (json?["assets"] as? [[String: Any]]) ?? []
+        if withNetcup {
+            let custom = "https://caddyserver.com/api/download?os=darwin&arch=arm64"
+                + "&p=github.com/caddy-dns/netcup&version=v\(version)"
+            guard let url = URL(string: custom) else { throw UpdateError.noAsset }
+            return ReleaseInfo(version: version, downloadURL: url, assetName: "caddy_custom",
+                               checksumsURL: nil, withNetcup: true)
+        }
         // Asset name pattern: caddy_<version>_mac_arm64.tar.gz
         let match = assets.first { ($0["name"] as? String)?.contains("mac_arm64.tar.gz") == true }
         guard let assetName = match?["name"] as? String,
@@ -80,18 +90,31 @@ enum CaddyUpdater {
         try fm.createDirectory(at: workDir, withIntermediateDirectories: true)
         defer { try? fm.removeItem(at: workDir) }
 
-        let tarPath = workDir.appendingPathComponent("caddy.tar.gz")
-        try? fm.removeItem(at: tarPath)
-        try fm.moveItem(at: tmpTar, to: tarPath)
-
-        // 1b) Verify integrity against the release's published SHA-512 checksums
-        // BEFORE doing anything with the downloaded file.
-        try await verifyChecksum(tarPath: tarPath, release: release)
-
-        // 2) Extract.
-        let untar = Shell.run("/usr/bin/tar", ["-xzf", tarPath.path, "-C", workDir.path])
-        guard untar.ok else { throw UpdateError.extractionFailed(untar.stderr) }
         let extracted = workDir.appendingPathComponent("caddy")
+        if release.withNetcup {
+            // Raw binary from the build service: no checksum exists, so prove it is
+            // a working Caddy with the expected module before it replaces ours.
+            try fm.moveItem(at: tmpTar, to: extracted)
+            try fm.setAttributes([.posixPermissions: 0o755], ofItemAtPath: extracted.path)
+            _ = Shell.run("/usr/bin/xattr", ["-d", "com.apple.quarantine", extracted.path])
+            _ = Shell.run("/usr/bin/codesign", ["-s", "-", "-f", extracted.path])
+            let mods = Shell.run(extracted.path, ["list-modules"])
+            guard mods.ok, mods.stdout.contains("dns.providers.netcup") else {
+                throw UpdateError.extractionFailed("netcup-Modul fehlt in der geladenen Binary")
+            }
+        } else {
+            let tarPath = workDir.appendingPathComponent("caddy.tar.gz")
+            try? fm.removeItem(at: tarPath)
+            try fm.moveItem(at: tmpTar, to: tarPath)
+
+            // 1b) Verify integrity against the release's published SHA-512 checksums
+            // BEFORE doing anything with the downloaded file.
+            try await verifyChecksum(tarPath: tarPath, release: release)
+
+            // 2) Extract.
+            let untar = Shell.run("/usr/bin/tar", ["-xzf", tarPath.path, "-C", workDir.path])
+            guard untar.ok else { throw UpdateError.extractionFailed(untar.stderr) }
+        }
         guard fm.isExecutableFile(atPath: extracted.path) else {
             throw UpdateError.extractionFailed("caddy nicht im Archiv")
         }

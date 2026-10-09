@@ -8,6 +8,12 @@ struct AppSettings: Codable, Hashable {
     /// Use the Let's Encrypt staging CA — for testing without hitting rate limits.
     var useStagingCA: Bool = false
 
+    /// Obtain certificates via the ACME DNS-01 challenge at netcup instead of
+    /// HTTP-01. Needs no inbound port 80/443 from the Let's Encrypt validators, so
+    /// geo-blocking can stay on. Credentials live in `AppPaths.acmeDnsFile`
+    /// (user-created, never stored in config.json).
+    var acmeDnsNetcup: Bool = false
+
     /// Ports Caddy actually binds. The router maps public 80→httpPort, 443→httpsPort.
     var httpPort: Int = 8080
     var httpsPort: Int = 8443

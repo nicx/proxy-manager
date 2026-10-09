@@ -25,6 +25,9 @@ enum AppPaths {
     /// Caddy's default logger (TLS/ACME/runtime events) as JSON.
     static var globalLog: URL { logsDir.appendingPathComponent("caddy.json") }
 
+    /// Snippet with the `acme_dns netcup { … }` block incl. API credentials.
+    static var acmeDnsFile: URL { appSupport.appendingPathComponent("acme-dns.caddy") }
+
     static var caddyfile: URL { appSupport.appendingPathComponent("Caddyfile") }
 
     /// Document roots for hosts that serve a static page.
