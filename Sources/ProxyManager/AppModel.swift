@@ -258,6 +258,9 @@ final class AppModel: ObservableObject {
             // other loggers (tls.*, admin, …) and still trigger a notification.
             if logger.hasPrefix("http.log.error") { continue }
             let msg = (obj["msg"] as? String) ?? ""
+            // Follow-up of a failed ACME "present" step ("no memory of presenting a DNS
+            // record"): harmless, the real error is the issuer failure itself.
+            if logger == "http.acme_client", msg == "cleaning up solver" { continue }
             var body = "Logger: \(logger)\nMeldung: \(msg)"
             if let id = obj["identifier"] as? String { body += "\nDomain: \(id)" }
             if let err = obj["error"] as? String { body += "\nDetails: \(err)" }
