@@ -26,6 +26,11 @@ enum CaddyfileBuilder {
         lines.append("\thttp_port \(s.httpPort)")
         lines.append("\thttps_port \(s.httpsPort)")
         lines.append("\tauto_https disable_redirects")
+        // HTTP/3 off: pf redirects TCP only, so the advertised `Alt-Svc: h3=":8443"`
+        // sends clients to UDP 8443, which nothing maps (firewall noise, slow fallback).
+        lines.append("\tservers {")
+        lines.append("\t\tprotocols h1 h2")
+        lines.append("\t}")
         if s.acmeDnsNetcup {
             lines.append("\timport \(quote(AppPaths.acmeDnsFile.path))")
         }
