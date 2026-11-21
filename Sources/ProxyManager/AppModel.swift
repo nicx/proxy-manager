@@ -58,8 +58,10 @@ final class AppModel: ObservableObject {
     /// Regenerate the Caddyfile from the stored config on launch and reload if
     /// Caddy is running. Ensures config changes shipped with an app update
     /// (e.g. the global TLS/ACME log) take effect without manual action.
+    /// Checks the LaunchAgent plist directly: the published `agentInstalled` flag
+    /// is still `false` here because `refreshStatus()` applies it asynchronously.
     private func syncOnLaunch() {
-        guard agentInstalled else { return }
+        guard AgentInstaller.isInstalled else { return }
         let cfg = config
         Task.detached {
             try? CaddyController.writeCaddyfile(cfg)

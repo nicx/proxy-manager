@@ -12,6 +12,21 @@ if [ ! -x "$CADDY_SEED" ]; then
     exit 1
 fi
 
+# The bundle is rebuilt in place (rm -rf) and is the one that runs in production.
+if pgrep -f "$APP/Contents/MacOS/ProxyManager" >/dev/null; then
+    echo "ProxyManager is running from $APP – quit it first." >&2
+    exit 1
+fi
+
+# Pin the stable macOS 26 SDK: the default SDK 27 of the Command Line Tools
+# ships without the SwiftUI macro plugin ("SwiftUIMacros.StateMacro could not
+# be found"). Same pin as the sister apps (ha-screentime, open-webui).
+CLT_SDKS="/Library/Developer/CommandLineTools/SDKs"
+if [ -z "${SDKROOT:-}" ] && [ -d "$CLT_SDKS/MacOSX26.sdk" ]; then
+    export SDKROOT="$CLT_SDKS/MacOSX26.sdk"
+    echo "==> SDKROOT pinned: $(readlink -f "$SDKROOT" 2>/dev/null || echo "$SDKROOT")"
+fi
+
 echo "==> Building release binary (arm64)…"
 swift build -c release --arch arm64
 
